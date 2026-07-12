@@ -115,12 +115,12 @@ u32 NtQueryInformationFile_entry(u32 file_handle, ppc_ptr_t<X_IO_STATUS_BLOCK> i
     return X_STATUS_INFO_LENGTH_MISMATCH;
   }
 
+  info_ptr.Zero(info_length);
+
   auto file = REX_KERNEL_OBJECTS()->LookupObject<XFile>(file_handle);
   if (!file) {
     return X_STATUS_INVALID_HANDLE;
   }
-
-  info_ptr.Zero(info_length);
 
   X_STATUS status = X_STATUS_SUCCESS;
   uint32_t out_length;
@@ -372,6 +372,13 @@ uint32_t GetQueryVolumeInfoMinimumLength(uint32_t info_class) {
 u32 NtQueryVolumeInformationFile_entry(u32 file_handle,
                                        ppc_ptr_t<X_IO_STATUS_BLOCK> io_status_block_ptr,
                                        mapped_void info_ptr, u32 info_length, u32 info_class) {
+  if (io_status_block_ptr) {
+    std::memset(io_status_block_ptr.host_address(), 0, sizeof(X_IO_STATUS_BLOCK));
+  }
+  if (info_ptr && info_length > 0) {
+    info_ptr.Zero(info_length);
+  }
+
   uint32_t minimum_length = GetQueryVolumeInfoMinimumLength(info_class);
   if (!minimum_length) {
     return X_STATUS_INVALID_INFO_CLASS;
@@ -385,8 +392,6 @@ u32 NtQueryVolumeInformationFile_entry(u32 file_handle,
   if (!file) {
     return X_STATUS_INVALID_HANDLE;
   }
-
-  info_ptr.Zero(info_length);
 
   X_STATUS status = X_STATUS_SUCCESS;
   uint32_t out_length;

@@ -195,11 +195,14 @@ bool Memory::Initialize() {
                               memory::kMemoryAllocationReserve | memory::kMemoryAllocationCommit,
                               memory::kMemoryProtectRead | memory::kMemoryProtectWrite);
 
-  // Pre-commit the physical memory range so the GPU can access it
-  // without page faults. Reference: xenia-canary 5f5be0668.
-  rex::memory::AllocFixed(heaps_.physical.TranslateRelative(0), heaps_.physical.heap_size(),
-                          rex::memory::AllocationType::kCommit,
-                          rex::memory::PageAccess::kReadWrite);
+  // Physical memory will be committed on-demand by the guest.
+  // It is now handled dynamically in BaseHeap::AllocRange when the guest actually allocates physical memory!
+  
+  // WORKAROUND: Pre-commit physical memory and aliases for games (e.g. Army of Two) that probe memory without kernel allocation.
+  rex::memory::AllocFixed(virtual_membase_, 0x20000000, rex::memory::AllocationType::kCommit, rex::memory::PageAccess::kReadWrite);
+  rex::memory::AllocFixed(virtual_membase_ + 0xA0000000, 0x20000000, rex::memory::AllocationType::kCommit, rex::memory::PageAccess::kReadWrite);
+  rex::memory::AllocFixed(virtual_membase_ + 0xC0000000, 0x20000000, rex::memory::AllocationType::kCommit, rex::memory::PageAccess::kReadWrite);
+  rex::memory::AllocFixed(virtual_membase_ + 0xE0000000, 0x1FD00000, rex::memory::AllocationType::kCommit, rex::memory::PageAccess::kReadWrite);
 
   // Install MMIO handler for physical address translation and MMIO ranges
   mmio_handler_ = runtime::MMIOHandler::Install(
@@ -609,6 +612,7 @@ void Memory::EnablePhysicalMemoryAccessCallbacks(uint32_t physical_address, uint
 }
 
 uint32_t Memory::SystemHeapAlloc(uint32_t size, uint32_t alignment, uint32_t system_heap_flags) {
+  REXSYS_ERROR("SystemHeapAlloc: size={:#010X} align={:#010X} flags={:#010X}", size, alignment, system_heap_flags);
   // TODO(benvanik): lightweight pool.
   bool is_physical = !!(system_heap_flags & memory::kSystemHeapPhysical);
   auto heap = LookupHeapByType(is_physical, 4096);
@@ -1109,6 +1113,15 @@ bool BaseHeap::AllocFixed(uint32_t base_address, uint32_t size, uint32_t alignme
     void* result =
         rex::memory::AllocFixed(TranslateRelative(start_page_number << page_size_shift_),
                                 page_count << page_size_shift_, alloc_type, ToPageAccess(protect));
+    
+    if (result && heap_type_ == memory::HeapType::kGuestPhysical && (allocation_type & memory::kMemoryAllocationCommit) && memory_) {
+      uint8_t* vmem = memory_->virtual_membase();
+      uint32_t offset = start_page_number << page_size_shift_;
+      uint32_t p_size = page_count << page_size_shift_;
+      rex::memory::AllocFixed(vmem + 0xA0000000 + offset, p_size, alloc_type, ToPageAccess(protect));
+      rex::memory::AllocFixed(vmem + 0xC0000000 + offset, p_size, alloc_type, ToPageAccess(protect));
+      rex::memory::AllocFixed(vmem + 0xE0000000 + offset, p_size, alloc_type, ToPageAccess(protect));
+    }
     if (!result) {
       REXSYS_ERROR("BaseHeap::AllocFixed failed to alloc range from host");
       return false;
@@ -1162,7 +1175,7 @@ bool BaseHeap::AllocRange(uint32_t low_address, uint32_t high_address, uint32_t 
 
   uint32_t available_page_count = high_page_number - low_page_number + 1;
   if (!page_count || page_count > available_page_count) {
-    REXSYS_ERROR("BaseHeap::Alloc page count too big for requested range");
+    REXSYS_ERROR("BaseHeap::Alloc page count too big for requested range (size={:08X}, page_count={}, avail={})", size, page_count, available_page_count);
     return false;
   }
 
@@ -1437,6 +1450,15 @@ bool BaseHeap::Protect(uint32_t address, uint32_t size, uint32_t protect, uint32
                               old_protect ? &old_protect_access : nullptr)) {
       REXSYS_ERROR("BaseHeap::Protect failed due to host VirtualProtect failure");
       return false;
+    }
+
+    if (heap_type_ == memory::HeapType::kGuestPhysical && memory_) {
+      uint8_t* vmem = memory_->virtual_membase();
+      uint32_t offset = start_page_number << page_size_shift_;
+      uint32_t p_size = page_count << page_size_shift_;
+      rex::memory::Protect(vmem + 0xA0000000 + offset, p_size, ToPageAccess(protect), nullptr);
+      rex::memory::Protect(vmem + 0xC0000000 + offset, p_size, ToPageAccess(protect), nullptr);
+      rex::memory::Protect(vmem + 0xE0000000 + offset, p_size, ToPageAccess(protect), nullptr);
     }
 
     if (old_protect) {

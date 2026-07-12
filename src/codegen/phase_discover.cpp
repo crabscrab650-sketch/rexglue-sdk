@@ -61,6 +61,8 @@ void discoverFunction(CodegenContext& ctx, uint32_t funcAddr,
     return;
   }
 
+  fmt::print(">>> DISCOVERING FUNC: {:08X}\n", funcAddr);
+  fflush(stdout);
   REXCODEGEN_TRACE("Analyze: discovering function 0x{:08X} ({})", funcAddr, node->name());
 
   // Lookup pdataSize for exception handler boundary

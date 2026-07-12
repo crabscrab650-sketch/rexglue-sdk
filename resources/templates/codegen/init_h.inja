@@ -103,9 +103,17 @@ extern PPCFuncMapping PPCFuncMappings[];
 //=============================================================================
 
 #if REX_PLATFORM_WIN32
-#define REX_PHYS_HOST_OFFSET(addr) (((u32)(addr) >= 0xE0000000u) ? 0x1000u : 0u)
+#define REX_PHYS_HOST_OFFSET(addr) ( \
+  ((u32)(addr) >= 0x80000000u && (u32)(addr) < 0xE0000000u) \
+    ? (int64_t)(-(int32_t)((u32)(addr) & 0xE0000000u)) \
+    : (((u32)(addr) >= 0xE0000000u) ? 0x1000ll : 0ll) \
+)
 #else
-#define REX_PHYS_HOST_OFFSET(addr) 0u
+#define REX_PHYS_HOST_OFFSET(addr) ( \
+  ((u32)(addr) >= 0x80000000u && (u32)(addr) < 0xE0000000u) \
+    ? (int64_t)(-(int32_t)((u32)(addr) & 0xE0000000u)) \
+    : 0ll \
+)
 #endif
 
 #define REX_RAW_ADDR(x) (base + (u32)(x) + REX_PHYS_HOST_OFFSET(x))
@@ -308,6 +316,7 @@ inline std::atomic<i32>& ppc_global_lock_count_() {
 #define REX_LEAVE_GLOBAL_LOCK()                                                           \
   do {                                                                                    \
     auto old_count_ = ppc_global_lock_count_().fetch_sub(1);                              \
+    (void)old_count_;                                                                     \
     assert(old_count_ >= 1 && "LeaveGlobalLock called without matching EnterGlobalLock"); \
     rex::thread::global_critical_region::mutex().unlock();                                \
   } while (0)

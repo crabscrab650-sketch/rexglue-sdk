@@ -105,11 +105,9 @@ u32 NtCreateFile_entry(mapped_u32 handle_out, u32 desired_access,
                        ppc_ptr_t<X_IO_STATUS_BLOCK> io_status_block, mapped_u64 allocation_size_ptr,
                        u32 file_attributes, u32 share_access, u32 creation_disposition,
                        u32 create_options) {
-  // note used. maybe later
-  // uint64_t allocation_size = 0;  // is this correct???
-  // if (allocation_size_ptr) {
-  //  allocation_size = *allocation_size_ptr;
-  //}
+  if (io_status_block) {
+    std::memset(io_status_block.host_address(), 0, sizeof(X_IO_STATUS_BLOCK));
+  }
 
   if (!object_attrs) {
     // ..? Some games do this. This parameter is not optional.
@@ -515,6 +513,10 @@ u32 NtRemoveIoCompletion_entry(u32 handle, mapped_u32 key_context, mapped_u32 ap
 
 u32 NtQueryFullAttributesFile_entry(ppc_ptr_t<X_OBJECT_ATTRIBUTES> obj_attribs,
                                     ppc_ptr_t<X_FILE_NETWORK_OPEN_INFORMATION> file_info) {
+  if (file_info) {
+    std::memset(file_info.host_address(), 0, sizeof(X_FILE_NETWORK_OPEN_INFORMATION));
+  }
+  
   auto object_name = REX_KERNEL_MEMORY()->TranslateVirtual<X_ANSI_STRING*>(obj_attribs->name_ptr);
   auto path_str = util::TranslateAnsiPath(REX_KERNEL_MEMORY(), object_name);
   REXKRNL_IMPORT_TRACE("NtQueryFullAttributesFile", "path={}", path_str);
@@ -560,6 +562,13 @@ u32 NtQueryDirectoryFile_entry(u32 file_handle, u32 event_handle, u32 apc_routin
                                ppc_ptr_t<X_IO_STATUS_BLOCK> io_status_block,
                                ppc_ptr_t<X_FILE_DIRECTORY_INFORMATION> file_info_ptr, u32 length,
                                ppc_ptr_t<X_ANSI_STRING> file_name, u32 restart_scan) {
+  if (io_status_block) {
+    std::memset(io_status_block.host_address(), 0, sizeof(X_IO_STATUS_BLOCK));
+  }
+  if (file_info_ptr && length > 0) {
+    std::memset(file_info_ptr.host_address(), 0, length);
+  }
+
   if (length < 72) {
     return X_STATUS_INFO_LENGTH_MISMATCH;
   }

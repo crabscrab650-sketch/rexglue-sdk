@@ -64,9 +64,8 @@ u32 NtAllocateVirtualMemory_entry(mapped_u32 base_addr_ptr, mapped_u32 region_si
                                   u32 alloc_type, u32 protect_bits, u32 debug_memory) {
   uint32_t input_base = base_addr_ptr ? static_cast<uint32_t>(*base_addr_ptr) : 0;
   uint32_t input_size = region_size_ptr ? static_cast<uint32_t>(*region_size_ptr) : 0;
-  REXKRNL_IMPORT_TRACE(
-      "NtAllocateVirtualMemory", "base={:#x} size={:#x} type={:#x} protect={:#x} debug={}",
-      input_base, input_size, (uint32_t)alloc_type, (uint32_t)protect_bits, (uint32_t)debug_memory);
+  REXSYS_ERROR("NtAllocateVirtualMemory_entry: base_ptr={:#010X} base={:#010X} size_ptr={:#010X} size={:#010X} alloc_type={:#010X} protect={:#010X}", 
+         (uint32_t)base_addr_ptr.host_address(), input_base, (uint32_t)region_size_ptr.host_address(), input_size, alloc_type, protect_bits);
 
   // NTSTATUS
   // _Inout_  PVOID *BaseAddress,
@@ -173,6 +172,7 @@ u32 NtAllocateVirtualMemory_entry(mapped_u32 base_addr_ptr, mapped_u32 region_si
   }
   if (!address) {
     // Failed - assume no memory available.
+    *base_addr_ptr = 0;
     return X_STATUS_NO_MEMORY;
   }
 
@@ -346,10 +346,7 @@ u32 NtQueryVirtualMemory_entry(u32 base_address,
 
 u32 MmAllocatePhysicalMemoryEx_entry(u32 flags, u32 region_size, u32 protect_bits,
                                      u32 min_addr_range, u32 max_addr_range, u32 alignment) {
-  REXKRNL_IMPORT_TRACE("MmAllocatePhysicalMemoryEx",
-                       "flags={:#x} size={:#x} protect={:#x} min={:#x} max={:#x} align={:#x}",
-                       (uint32_t)flags, (uint32_t)region_size, (uint32_t)protect_bits,
-                       (uint32_t)min_addr_range, (uint32_t)max_addr_range, (uint32_t)alignment);
+  REXSYS_ERROR("MmAllocatePhysicalMemoryEx_entry: size={:#010X} align={:#010X} flags={:#010X} protect={:#010X} min={:#010X} max={:#010X}", region_size, alignment, flags, protect_bits, min_addr_range, max_addr_range);
 
   // Check protection bits.
   if (!(protect_bits & (X_PAGE_READONLY | X_PAGE_READWRITE))) {
@@ -590,6 +587,7 @@ struct X_POOL_ALLOC_HEADER {
 static_assert_size(X_POOL_ALLOC_HEADER, 8);
 
 u32 ExAllocatePoolTypeWithTag_entry(u32 size, u32 tag, u32 zero) {
+  REXSYS_ERROR("ExAllocatePoolTypeWithTag_entry: size={:#010X} tag={:#010X}", (uint32_t)size, (uint32_t)tag);
   if (size <= 0xFD8) {
     uint32_t adjusted_size = size + sizeof(X_POOL_ALLOC_HEADER);
     uint32_t addr = REX_KERNEL_MEMORY()->SystemHeapAlloc(adjusted_size, 64);

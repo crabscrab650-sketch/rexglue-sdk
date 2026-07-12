@@ -585,6 +585,9 @@ VoidResult registerEntryPoints(CodegenContext& ctx) {
   size_t count = pdataSize / sizeof(IMAGE_CE_RUNTIME_FUNCTION);
   auto* entries = reinterpret_cast<const IMAGE_CE_RUNTIME_FUNCTION*>(pdataData);
 
+  fmt::print(">>> PDATA COUNT: {}\n", count);
+  fflush(stdout);
+
   size_t pdataAdded = 0;
   for (size_t i = 0; i < count; i++) {
     uint32_t beginAddr = byte_swap(entries[i].BeginAddress);

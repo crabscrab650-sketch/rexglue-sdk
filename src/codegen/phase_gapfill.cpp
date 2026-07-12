@@ -180,11 +180,18 @@ void cleanupAbsorbedGapFills(CodegenContext& ctx) {
   auto& graph = ctx.graph;
   std::vector<uint32_t> toRemove;
 
+  std::vector<FunctionNode*> allFunctions;
+  allFunctions.reserve(graph.functions().size());
+  for (const auto& [addr, node] : graph.functions()) {
+    allFunctions.push_back(node.get());
+  }
+
   for (const auto& [addr, node] : graph.functions()) {
     if (node->authority() != FunctionAuthority::GAP_FILL)
       continue;
 
-    for (const auto& [otherAddr, otherNode] : graph.functions()) {
+    for (FunctionNode* otherNode : allFunctions) {
+      uint32_t otherAddr = otherNode->base();
       if (otherAddr == addr)
         continue;
       if (!otherNode->containsAddress(addr))

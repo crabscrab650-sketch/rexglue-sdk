@@ -107,8 +107,8 @@ object_ref<T> LookupNamedObject(KernelState* kernel_state, uint32_t obj_attribut
 u32 ExCreateThread_entry(mapped_u32 handle_ptr, u32 stack_size, mapped_u32 thread_id_ptr,
                          u32 xapi_thread_startup, mapped_void start_address,
                          mapped_void start_context, u32 creation_flags) {
-  REXKRNL_IMPORT_TRACE(
-      "ExCreateThread", "stack={:#x} xapi_startup={:#x} start={:#x} context={:#x} flags={:#x}",
+  REXSYS_ERROR(
+      "ExCreateThread: stack={:#010X} xapi_startup={:#010X} start={:#010X} context={:#010X} flags={:#010X}",
       (uint32_t)stack_size, (uint32_t)xapi_thread_startup, start_address.guest_address(),
       start_context.guest_address(), (uint32_t)creation_flags);
   // http://jafile.com/uploads/scoop/main.cpp.txt

@@ -296,13 +296,13 @@ TEST_CASE("MigrationScan: ScanStaleIncludes matches case-insensitively on basena
 // Legacy identifier scanner
 // ---------------------------------------------------------------------------
 
-TEST_CASE("MigrationScan: ScanLegacyIdentifiers rewrites whole-token PPC_FUNC to REX_FUNC",
+TEST_CASE("MigrationScan: ScanLegacyIdentifiers rewrites whole-token REX_FUNC to REX_FUNC",
           "[rexglue][migration_scan]") {
   TempProject tp("migration_legacy_idents");
   tp.writeFile("src/foo.cpp",
                "#include <rex/ppc/context.h>\n"
-               "PPC_FUNC(sub_1234) {\n"
-               "  PPC_LOAD_U32(ctx.r3.u32);\n"
+               "REX_FUNC(sub_1234) {\n"
+               "  REX_LOAD_U32(ctx.r3.u32);\n"
                "}\n");
 
   auto findings = rexglue::cli::ScanLegacyIdentifiers(tp.root);
@@ -313,8 +313,8 @@ TEST_CASE("MigrationScan: ScanLegacyIdentifiers rewrites whole-token PPC_FUNC to
   CHECK_FALSE(entry.silent);
   CHECK(entry.rendered_content.find("REX_FUNC(sub_1234)") != std::string::npos);
   CHECK(entry.rendered_content.find("REX_LOAD_U32") != std::string::npos);
-  CHECK(entry.rendered_content.find("PPC_FUNC") == std::string::npos);
-  CHECK(entry.rendered_content.find("PPC_LOAD_U32") == std::string::npos);
+  CHECK(entry.rendered_content.find("REX_FUNC") == std::string::npos);
+  CHECK(entry.rendered_content.find("REX_LOAD_U32") == std::string::npos);
 }
 
 TEST_CASE("MigrationScan: ScanLegacyIdentifiers leaves non-matching prefixes alone",
@@ -349,11 +349,11 @@ TEST_CASE("MigrationScan: ScanLegacyIdentifiers warns on tokens with no replacem
 TEST_CASE("MigrationScan: ScanLegacyIdentifiers respects identifier boundaries",
           "[rexglue][migration_scan]") {
   TempProject tp("migration_legacy_idents_boundary");
-  // PPC_FUNC_PROLOGUE is a known token; PPC_FUNC_THINGAMAJIG is not. The token
+  // REX_FUNC_PROLOGUE is a known token; PPC_FUNC_THINGAMAJIG is not. The token
   // matcher must prefer the longest run of identifier characters and only
   // rewrite when the full identifier is in the rule table.
   tp.writeFile("src/bar.cpp",
-               "PPC_FUNC_PROLOGUE();\n"
+               "REX_FUNC_PROLOGUE();\n"
                "PPC_FUNC_THINGAMAJIG();\n");
 
   auto findings = rexglue::cli::ScanLegacyIdentifiers(tp.root);
@@ -365,7 +365,7 @@ TEST_CASE("MigrationScan: ScanLegacyIdentifiers respects identifier boundaries",
 TEST_CASE("MigrationScan: ScanLegacyIdentifiers skips files inside generated/",
           "[rexglue][migration_scan]") {
   TempProject tp("migration_legacy_idents_gen");
-  tp.writeFile("generated/foo.cpp", "PPC_FUNC(sub_1) {}\n");
+  tp.writeFile("generated/foo.cpp", "REX_FUNC(sub_1) {}\n");
 
   auto findings = rexglue::cli::ScanLegacyIdentifiers(tp.root);
   CHECK(findings.rewrites.empty());
@@ -506,9 +506,9 @@ TEST_CASE("MigrationScan: DefaultBreakingChangeRules covers PPC_ legacy macros",
   bool saw_ppc_func = false;
   bool saw_ppc_round_nearest = false;
   for (const auto& r : rules) {
-    if (r.legacy_token == "PPC_FUNC")
+    if (r.legacy_token == "REX_FUNC")
       saw_ppc_func = (r.replacement == "REX_FUNC");
-    if (r.legacy_token == "PPC_ROUND_NEAREST")
+    if (r.legacy_token == "rex::ppc::kRoundNearest")
       saw_ppc_round_nearest = (r.replacement == "rex::ppc::kRoundNearest");
   }
   CHECK(saw_ppc_func);
