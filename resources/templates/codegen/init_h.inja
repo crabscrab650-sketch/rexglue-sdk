@@ -281,9 +281,13 @@ inline void ppc_trap(PPCContext& ctx, u8* base, u16 trap_type) {
       break;
     }
     case 0:
-    case 22:
-      REXCPU_WARN("tw/td trap hit (type {})", trap_type);
+    case 22: {
+      static uint32_t trap_count_22 = 0;
+      if (++trap_count_22 <= 5) {
+        REXCPU_WARN("tw/td trap hit (type {})", trap_type);
+      }
       break;
+    }
     case 25:
       break;
     default:
